@@ -26,7 +26,7 @@ func GetCommands() map[int]contracts.ICommand {
 	return commandsMap
 }
 
-func GetTerrain() contracts.ITerrain {
+func GetTerrain(currentAgents []contracts.IAgent) contracts.ITerrain {
 	terrain := terrains.MooreTerrain{
 		terrains.Terrain{
 			Cells:  make([]contracts.ICell, 0),
@@ -76,38 +76,49 @@ func GetTerrain() contracts.ITerrain {
 	terrain.Cells[9].SetCellType(contracts.OrganicCell)
 	terrain.Cells[9].SetCost(4)
 
+	placedChildrenCount := 0
+
+	for i := 0; i < len(terrain.Cells) && placedChildrenCount < len(currentAgents); i++ {
+		if terrain.Cells[i].GetCellType() == contracts.EmptyCell {
+			currentAgents[placedChildrenCount].SetX(terrain.Cells[i].GetX())
+			currentAgents[placedChildrenCount].SetY(terrain.Cells[i].GetY())
+			terrain.Cells[i].SetCellType(contracts.LockedCell)
+			terrain.Cells[i].SetAgent(currentAgents[placedChildrenCount])
+			placedChildrenCount++
+		}
+	}
 	return &terrain
 }
 
-func GetAgent() contracts.IAgent {
-	agent := &agents.Agent{
-		IBrain: &core.Brain{
-			CommandList: commands.CommandList{
-				Commands: GetCommands(),
+func GetAgents(agentsCount int) []contracts.IAgent {
+	result := make([]contracts.IAgent, 0)
+	for i := 0; i < agentsCount; i++ {
+		agent := &agents.Agent{
+			IBrain: &core.Brain{
+				CommandList: commands.CommandList{
+					Commands: GetCommands(),
+				},
+				Commands: []int{
+					0, 4, //down
+					1, 4, //eat down
+					14,
+					11,
+					2,
+					1,
+					0, 2, //right
+					1, 2, //eat right
+					14,
+					11,
+					2,
+					1,
+				},
+				CurrentAddress: 0,
 			},
-			Commands: []int{
-				0, 4, //down
-				1, 4, //eat down
-				14,
-				11,
-				2,
-				1,
-				0, 2, //right
-				1, 2, //eat right
-				14,
-				11,
-				2,
-				1,
-			},
-			CurrentAddress: 0,
-		},
-		Coords: primitives.Coords{
-			X: 1,
-			Y: 0,
-		},
-		IReproduction: &reproductions.BuddingReproduction{},
-		Energy:        22,
-		Generation:    0,
+			IReproduction: &reproductions.BuddingReproduction{},
+			Energy:        22,
+			Generation:    0,
+		}
+		result = append(result, agent)
 	}
-	return agent
+	return result
 }
