@@ -17,6 +17,7 @@ const (
 
 type EvolutionSettings struct {
 	agentsCount string
+	terrainType int
 }
 
 type Workspace struct {
@@ -35,7 +36,7 @@ func (this *Workspace) initWorld(settings EvolutionSettings) contracts.IWorld {
 	agentsCount, _ := strconv.Atoi(settings.agentsCount)
 	currentAgents := GetAgents(agentsCount)
 
-	terrain := GetTerrain(currentAgents)
+	terrain := GetTerrain(currentAgents, settings.terrainType)
 
 	return &world.World{
 		terrain,
@@ -45,7 +46,7 @@ func (this *Workspace) initWorld(settings EvolutionSettings) contracts.IWorld {
 func (this *Workspace) Init() {
 
 	this.currentWindow = g.NewMasterWindow(title, this.Width, this.Height, g.MasterWindowFlagsNotResizable)
-	this.settings = EvolutionSettings{agentsCount: strconv.Itoa(1)}
+	this.settings = EvolutionSettings{agentsCount: strconv.Itoa(1), terrainType: 0}
 }
 
 func (this *Workspace) Start() {
@@ -70,6 +71,10 @@ func (this *Workspace) drawControls() *g.Layout {
 		g.Row(
 			g.Label("Agents count"),
 			g.InputText(&this.settings.agentsCount),
+		),
+		g.Row(
+			g.RadioButton("Moore", this.settings.terrainType == 0).OnChange(func() { this.settings.terrainType = 0 }),
+			g.RadioButton("Neumann", this.settings.terrainType == 1).OnChange(func() { this.settings.terrainType = 1 }),
 		),
 		g.Row(
 			g.Label("Start simulation"),

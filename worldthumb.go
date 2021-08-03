@@ -26,68 +26,81 @@ func GetCommands() map[int]contracts.ICommand {
 	return commandsMap
 }
 
-func GetTerrain(currentAgents []contracts.IAgent) contracts.ITerrain {
-	terrain := terrains.MooreTerrain{
-		terrains.Terrain{
-			Cells:  make([]contracts.ICell, 0),
-			Width:  10,
-			Height: 5,
-		},
+func GetTerrain(currentAgents []contracts.IAgent, terrainType int) contracts.ITerrain {
+
+	var terrain contracts.ITerrain
+
+	baseTerrain := terrains.Terrain{
+		Cells:  make([]contracts.ICell, 50),
+		Width:  10,
+		Height: 5,
 	}
 
-	for y := 0; y < terrain.Height; y++ {
-		for x := 0; x < terrain.Width; x++ {
-			currentCell := terrains.Cell{
-				Coords: primitives.Coords{
-					X: x,
-					Y: y,
-				},
-				CellType: contracts.EmptyCell,
-				Cost:     0,
-			}
-			terrain.Cells = append(terrain.Cells, &currentCell)
+	if terrainType == 0 {
+		terrain = &terrains.MooreTerrain{
+			baseTerrain,
+		}
+	} else if terrainType == 1 {
+		terrain = &terrains.NeumannTerrain{
+			baseTerrain,
 		}
 	}
 
-	terrain.Cells[21].SetCellType(contracts.OrganicCell)
-	terrain.Cells[21].SetCost(4)
+	for i := 0; i < len(terrain.GetCells()); i++ {
+		terrain.GetCells()[i] = &terrains.Cell{
+			Coords:   primitives.Coords{},
+			CellType: contracts.EmptyCell,
+			Cost:     0,
+			Agent:    nil,
+		}
+	}
 
-	terrain.Cells[23].SetCellType(contracts.OrganicCell)
-	terrain.Cells[23].SetCost(4)
+	for y := 0; y < terrain.GetHeight(); y++ {
+		for x := 0; x < terrain.GetWidth(); x++ {
+			terrain.GetCell(x, y).SetX(x)
+			terrain.GetCell(x, y).SetY(y)
+		}
+	}
 
-	terrain.Cells[43].SetCellType(contracts.OrganicCell)
-	terrain.Cells[43].SetCost(4)
+	terrain.GetCells()[21].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[21].SetCost(4)
 
-	terrain.Cells[45].SetCellType(contracts.OrganicCell)
-	terrain.Cells[45].SetCost(4)
+	terrain.GetCells()[23].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[23].SetCost(4)
 
-	terrain.Cells[15].SetCellType(contracts.OrganicCell)
-	terrain.Cells[15].SetCost(4)
+	terrain.GetCells()[43].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[43].SetCost(4)
 
-	terrain.Cells[17].SetCellType(contracts.OrganicCell)
-	terrain.Cells[17].SetCost(4)
+	terrain.GetCells()[45].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[45].SetCost(4)
 
-	terrain.Cells[37].SetCellType(contracts.OrganicCell)
-	terrain.Cells[37].SetCost(4)
+	terrain.GetCells()[15].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[15].SetCost(4)
 
-	terrain.Cells[39].SetCellType(contracts.OrganicCell)
-	terrain.Cells[39].SetCost(4)
+	terrain.GetCells()[17].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[17].SetCost(4)
 
-	terrain.Cells[9].SetCellType(contracts.OrganicCell)
-	terrain.Cells[9].SetCost(4)
+	terrain.GetCells()[37].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[37].SetCost(4)
+
+	terrain.GetCells()[39].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[39].SetCost(4)
+
+	terrain.GetCells()[9].SetCellType(contracts.OrganicCell)
+	terrain.GetCells()[9].SetCost(4)
 
 	placedChildrenCount := 0
 
-	for i := 0; i < len(terrain.Cells) && placedChildrenCount < len(currentAgents); i++ {
-		if terrain.Cells[i].GetCellType() == contracts.EmptyCell {
-			currentAgents[placedChildrenCount].SetX(terrain.Cells[i].GetX())
-			currentAgents[placedChildrenCount].SetY(terrain.Cells[i].GetY())
-			terrain.Cells[i].SetCellType(contracts.LockedCell)
-			terrain.Cells[i].SetAgent(currentAgents[placedChildrenCount])
+	for i := 0; i < len(terrain.GetCells()) && placedChildrenCount < len(currentAgents); i++ {
+		if terrain.GetCells()[i].GetCellType() == contracts.EmptyCell {
+			currentAgents[placedChildrenCount].SetX(terrain.GetCells()[i].GetX())
+			currentAgents[placedChildrenCount].SetY(terrain.GetCells()[i].GetY())
+			terrain.GetCells()[i].SetCellType(contracts.LockedCell)
+			terrain.GetCells()[i].SetAgent(currentAgents[placedChildrenCount])
 			placedChildrenCount++
 		}
 	}
-	return &terrain
+	return terrain
 }
 
 func GetAgents(agentsCount int) []contracts.IAgent {
