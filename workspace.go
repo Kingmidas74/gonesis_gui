@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	g "github.com/AllenDang/giu"
 	"github.com/Kingmidas74/gonesis_engine/contracts"
 	"github.com/Kingmidas74/gonesis_engine/core/world"
@@ -13,6 +14,10 @@ import (
 
 const (
 	title string = "Gonesis"
+)
+
+var (
+	showCommands = false
 )
 
 type EvolutionSettings struct {
@@ -45,7 +50,7 @@ func (this *Workspace) initWorld(settings EvolutionSettings) contracts.IWorld {
 
 func (this *Workspace) Init() {
 
-	this.currentWindow = g.NewMasterWindow(title, this.Width, this.Height, g.MasterWindowFlagsNotResizable)
+	this.currentWindow = g.NewMasterWindow(title, this.Width, this.Height, g.MasterWindowFlagsMaximized)
 	this.settings = EvolutionSettings{agentsCount: strconv.Itoa(1), terrainType: 0}
 }
 
@@ -105,6 +110,7 @@ func (this *Workspace) exit() {
 }
 
 func (this *Workspace) loop() {
+
 	g.SingleWindowWithMenuBar().Layout(
 		g.MenuBar().Layout(
 			g.Menu("Gonesis").Layout(
@@ -119,7 +125,9 @@ func (this *Workspace) loop() {
 					g.MenuItem("Generate"),
 				),
 				g.Menu("Commands").Layout(
-					g.MenuItem("Show"),
+					g.MenuItem("Show").OnClick(func() {
+						showCommands = true
+					}),
 					g.MenuItem("Edit"),
 					g.MenuItem("Add"),
 				),
@@ -135,4 +143,34 @@ func (this *Workspace) loop() {
 			},
 		),
 	)
+
+	commandsF := func() []*g.TableRowWidget {
+		cmnds := GetCommands()
+		rows := make([]*g.TableRowWidget, len(cmnds)+1)
+
+		rows[0] = g.TableRow(
+			g.Label("Identifier"),
+			g.Label("Title"),
+		).Flags(g.TableRowFlagsHeaders)
+
+		for i, e := range cmnds {
+			rows[i+1] = g.TableRow(
+				g.Label(fmt.Sprintf("%d", i)),
+				g.Label(fmt.Sprintf("%T", e)),
+			)
+		}
+
+		rows[0].BgColor(&(color.RGBA{200, 100, 100, 255}))
+
+		return rows
+	}
+
+	if showCommands {
+		g.SingleWindow().IsOpen(&showCommands).Flags(g.WindowFlagsNoResize).Pos(250, 30).Size(300, 300).Layout(
+			g.Table().Freeze(0, 1).FastMode(true).Rows(commandsF()...),
+			g.Button("Hide me").OnClick(func() {
+				showCommands = false
+			}),
+		)
+	}
 }
