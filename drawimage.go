@@ -12,6 +12,7 @@ func DrawFrame(terrain contracts.ITerrain, zoom int) *image.RGBA {
 
 	m := image.NewRGBA(image.Rect(0, 0, (terrain.GetWidth()+1)*zoom, (terrain.GetHeight()+1)*zoom))
 	organiccolor := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	badcolor := color.RGBA{R: 255, G: 0, B: 0, A: 255}
 	//agentcolor := color.RGBA{R: 0, G: 0, B: 255, A: 255}
 	emptycolor := color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	currentColor := organiccolor
@@ -23,8 +24,14 @@ func DrawFrame(terrain contracts.ITerrain, zoom int) *image.RGBA {
 				currentColor = emptycolor
 			} else if currentCell.GetCellType() == contracts.LockedCell {
 				currentColor = color.RGBA{R: 0, G: 0, B: 255, A: uint8(utils.ModLikePython(255+currentCell.GetAgent().GetGeneration()*10, 255))}
+			} else if currentCell.GetCellType() == contracts.ObstacleCell {
+				currentColor = color.RGBA{R: 50, G: 50, B: 50, A: 255}
 			} else if currentCell.GetCellType() == contracts.OrganicCell {
-				currentColor = organiccolor
+				if currentCell.GetCost() > 0 {
+					currentColor = organiccolor
+				} else {
+					currentColor = badcolor
+				}
 			}
 			draw.Draw(m, image.Rect(currentLatitude*zoom, currentLongitude*zoom, currentLatitude*zoom+zoom, currentLongitude*zoom+zoom), &image.Uniform{C: currentColor}, image.Point{}, draw.Src)
 		}
@@ -32,4 +39,3 @@ func DrawFrame(terrain contracts.ITerrain, zoom int) *image.RGBA {
 
 	return m
 }
-

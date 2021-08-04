@@ -6,7 +6,6 @@ import (
 	"github.com/Kingmidas74/gonesis_engine/core"
 	"github.com/Kingmidas74/gonesis_engine/core/agents"
 	"github.com/Kingmidas74/gonesis_engine/core/commands"
-	"github.com/Kingmidas74/gonesis_engine/core/primitives"
 	"github.com/Kingmidas74/gonesis_engine/core/reproductions"
 	"github.com/Kingmidas74/gonesis_engine/core/terrains"
 )
@@ -26,85 +25,40 @@ func GetCommands() map[int]contracts.ICommand {
 	return commandsMap
 }
 
-func GetTerrain(currentAgents []contracts.IAgent, terrainType int) contracts.ITerrain {
+func GetTerrain(settings TerrainSettings, cells []contracts.ICell, width, height int) contracts.ITerrain {
 
 	var terrain contracts.ITerrain
 
 	baseTerrain := terrains.Terrain{
-		Cells:  make([]contracts.ICell, 50),
-		Width:  10,
-		Height: 5,
+		Cells:  cells,
+		Width:  width,
+		Height: height,
 	}
 
-	if terrainType == 0 {
+	switch settings.terrainType {
+	case 0:
 		terrain = &terrains.MooreTerrain{
 			baseTerrain,
 		}
-	} else if terrainType == 1 {
+		break
+	case 1:
 		terrain = &terrains.NeumannTerrain{
 			baseTerrain,
 		}
-	}
-
-	for i := 0; i < len(terrain.GetCells()); i++ {
-		terrain.GetCells()[i] = &terrains.Cell{
-			Coords:   primitives.Coords{},
-			CellType: contracts.EmptyCell,
-			Cost:     0,
-			Agent:    nil,
+		break
+	case 2:
+		terrain = &terrains.HexTerrain{
+			baseTerrain,
 		}
+		break
 	}
 
-	for y := 0; y < terrain.GetHeight(); y++ {
-		for x := 0; x < terrain.GetWidth(); x++ {
-			terrain.GetCell(x, y).SetX(x)
-			terrain.GetCell(x, y).SetY(y)
-		}
-	}
-
-	terrain.GetCells()[21].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[21].SetCost(4)
-
-	terrain.GetCells()[23].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[23].SetCost(4)
-
-	terrain.GetCells()[43].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[43].SetCost(4)
-
-	terrain.GetCells()[45].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[45].SetCost(4)
-
-	terrain.GetCells()[15].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[15].SetCost(4)
-
-	terrain.GetCells()[17].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[17].SetCost(4)
-
-	terrain.GetCells()[37].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[37].SetCost(4)
-
-	terrain.GetCells()[39].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[39].SetCost(4)
-
-	terrain.GetCells()[9].SetCellType(contracts.OrganicCell)
-	terrain.GetCells()[9].SetCost(4)
-
-	placedChildrenCount := 0
-
-	for i := 0; i < len(terrain.GetCells()) && placedChildrenCount < len(currentAgents); i++ {
-		if terrain.GetCells()[i].GetCellType() == contracts.EmptyCell {
-			currentAgents[placedChildrenCount].SetX(terrain.GetCells()[i].GetX())
-			currentAgents[placedChildrenCount].SetY(terrain.GetCells()[i].GetY())
-			terrain.GetCells()[i].SetCellType(contracts.LockedCell)
-			terrain.GetCells()[i].SetAgent(currentAgents[placedChildrenCount])
-			placedChildrenCount++
-		}
-	}
 	return terrain
 }
 
-func GetAgents(agentsCount int) []contracts.IAgent {
+func GetAgents(agentsCount int, settings ReproductionSettings) []contracts.IAgent {
 	result := make([]contracts.IAgent, 0)
+
 	for i := 0; i < agentsCount; i++ {
 		agent := &agents.Agent{
 			IBrain: &core.Brain{
@@ -127,9 +81,23 @@ func GetAgents(agentsCount int) []contracts.IAgent {
 				},
 				CurrentAddress: 0,
 			},
-			IReproduction: &reproductions.BuddingReproduction{},
-			Energy:        22,
-			Generation:    0,
+			Energy:     int(settings.defaultEnergyVolume),
+			Generation: 0,
+		}
+		switch settings.reproductionType {
+		case 0:
+			agent.IReproduction = &reproductions.BuddingReproduction{
+				ReproductionPower:   int(settings.buddingReproductionSettings.reproductionPower),
+				MutationProbability: int(settings.buddingReproductionSettings.mutationProbability),
+			}
+			break
+		case 1:
+			agent.IReproduction = &reproductions.MitosisReproduction{
+				ReproductionPower:   int(settings.mitosisReproductionSettings.reproductionPower),
+				MutationProbability: int(settings.mitosisReproductionSettings.mutationProbability),
+				GenerationPower:     int(settings.mitosisReproductionSettings.generationCapacity),
+			}
+			break
 		}
 		result = append(result, agent)
 	}

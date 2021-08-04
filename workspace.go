@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	g "github.com/AllenDang/giu"
 	"github.com/Kingmidas74/gonesis_engine/contracts"
+	"github.com/Kingmidas74/gonesis_engine/core/primitives"
+	"github.com/Kingmidas74/gonesis_engine/core/terrains"
 	"github.com/Kingmidas74/gonesis_engine/core/world"
 	"image"
 	"image/color"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,71 +20,148 @@ const (
 	title string = "Gonesis"
 )
 
-var (
-	showCommands = false
-)
-
-type EvolutionSettings struct {
-	agentsCount string
-	terrainType int
-}
-
 type Workspace struct {
 	Width  int
 	Height int
 
 	currentWindow *g.MasterWindow
 
-	texture      *g.Texture
-	currentWorld contracts.IWorld
+	texture        *g.Texture
+	currentTerrain contracts.ITerrain
 
-	settings EvolutionSettings
+	settings        EvolutionSettings
+	terrainFilePath string
 }
 
-func (this *Workspace) initWorld(settings EvolutionSettings) contracts.IWorld {
-	agentsCount, _ := strconv.Atoi(settings.agentsCount)
-	currentAgents := GetAgents(agentsCount)
+func (this *Workspace) placeAgents(currentAgents []contracts.IAgent) {
+	placedChildrenCount := 0
 
-	terrain := GetTerrain(currentAgents, settings.terrainType)
-
-	return &world.World{
-		terrain,
+	for i := 0; i < len(this.currentTerrain.GetCells()) && placedChildrenCount < len(currentAgents); i++ {
+		if this.currentTerrain.GetCells()[i].GetCellType() == contracts.EmptyCell {
+			currentAgents[placedChildrenCount].SetX(this.currentTerrain.GetCells()[i].GetX())
+			currentAgents[placedChildrenCount].SetY(this.currentTerrain.GetCells()[i].GetY())
+			this.currentTerrain.GetCells()[i].SetCellType(contracts.LockedCell)
+			this.currentTerrain.GetCells()[i].SetAgent(currentAgents[placedChildrenCount])
+			placedChildrenCount++
+		}
 	}
+
 }
 
 func (this *Workspace) Init() {
 
+	this.terrainFilePath = "$HOME"
 	this.currentWindow = g.NewMasterWindow(title, this.Width, this.Height, g.MasterWindowFlagsMaximized)
-	this.settings = EvolutionSettings{agentsCount: strconv.Itoa(1), terrainType: 0}
+	this.settings = EvolutionSettings{
+		worldSettings:   WorldSettings{agentsCount: 1},
+		terrainSettings: TerrainSettings{terrainType: 0, organicProbability: 50},
+		reproductionSettings: ReproductionSettings{
+			reproductionType:    0,
+			defaultEnergyVolume: 22,
+			mitosisReproductionSettings: MitosisReproductionSettings{
+				mutationProbability: 0,
+				reproductionPower:   20,
+				generationCapacity:  2,
+			},
+			buddingReproductionSettings: BuddingReproductionSettings{
+				mutationProbability: 0,
+				reproductionPower:   20,
+			},
+		},
+	}
 }
 
 func (this *Workspace) Start() {
 	this.currentWindow.Run(this.loop)
 }
 
+func (this *Workspace) generateTerrain(withDraw bool) {
+	cells := make([]contracts.ICell, 0)
+	this.currentTerrain = GetTerrain(this.settings.terrainSettings, cells, 0, 0)
+	this.placeAgents(GetAgents(int(this.settings.worldSettings.agentsCount), this.settings.reproductionSettings))
+	if withDraw {
+		this.texture, _ = g.NewTextureFromRgba(DrawFrame(this.currentTerrain, 100))
+	}
+}
+
+func Readln(r *bufio.Reader) (string, error) {
+	var (
+		isPrefix bool  = true
+		err      error = nil
+		line, ln []byte
+	)
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.ReadLine()
+		ln = append(ln, line...)
+	}
+	return string(ln), err
+}
+
+func (this *Workspace) loadTerrainFromFile(filePath string) {
+
+	cells := make([]contracts.ICell, 0)
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("error opening file: %v\n", err)
+		os.Exit(1)
+	}
+	r := bufio.NewReader(f)
+	s, e := Readln(r)
+	currentRowIndex := 0
+	for e == nil {
+		for i, data := range strings.Split(s, ",") {
+			currentCell := terrains.Cell{
+				Coords: primitives.Coords{
+					X: i,
+					Y: currentRowIndex,
+				},
+				CellType: contracts.EmptyCell,
+				Cost:     0,
+				Agent:    nil,
+			}
+			if data == "*" {
+				currentCell.SetCellType(contracts.ObstacleCell)
+			} else {
+				weight, _ := strconv.Atoi(data)
+				if weight != 0 {
+					currentCell.SetCellType(contracts.OrganicCell)
+					currentCell.SetCost(weight)
+				}
+			}
+			cells = append(cells, &currentCell)
+		}
+		s, e = Readln(r)
+		currentRowIndex++
+	}
+
+	this.currentTerrain = GetTerrain(this.settings.terrainSettings, cells, len(cells)/currentRowIndex, currentRowIndex)
+	this.placeAgents(GetAgents(int(this.settings.worldSettings.agentsCount), this.settings.reproductionSettings))
+	go func() {
+		this.texture, _ = g.NewTextureFromRgba(DrawFrame(this.currentTerrain, 100))
+	}()
+}
+
 func (this *Workspace) runEvolution() {
-	this.currentWorld = this.initWorld(this.settings)
-	go this.currentWorld.Action(1, func(terrain contracts.ITerrain, currentDay int) {
+	if this.currentTerrain == nil {
+		this.generateTerrain(false)
+	}
+	currentWorld := world.World{
+		this.currentTerrain,
+	}
+	go currentWorld.Action(1, func(terrain contracts.ITerrain, currentDay int) {
 		img := DrawFrame(terrain, 100)
 
 		defer time.AfterFunc(time.Duration(100)*time.Millisecond, func() {
 			this.texture, _ = g.NewTextureFromRgba(img)
 		}).Stop()
-
 		time.Sleep(100 * time.Millisecond)
 	})
+	this.currentTerrain = nil
 }
 
 func (this *Workspace) drawControls() *g.Layout {
 	return &g.Layout{
-		g.Row(
-			g.Label("Agents count"),
-			g.InputText(&this.settings.agentsCount),
-		),
-		g.Row(
-			g.RadioButton("Moore", this.settings.terrainType == 0).OnChange(func() { this.settings.terrainType = 0 }),
-			g.RadioButton("Neumann", this.settings.terrainType == 1).OnChange(func() { this.settings.terrainType = 1 }),
-		),
 		g.Row(
 			g.Label("Start simulation"),
 			g.Style().
@@ -88,6 +169,76 @@ func (this *Workspace) drawControls() *g.Layout {
 				To(
 					g.ArrowButton("Start simulation", g.DirectionRight).OnClick(this.runEvolution),
 				),
+		),
+		g.TabBar().TabItems(
+			g.TabItem("World").Layout(
+				g.Row(
+					g.Label("Agents count"),
+					g.InputInt(&this.settings.worldSettings.agentsCount),
+				),
+				g.Row(
+					g.Label("Start energy"),
+					g.InputInt(&this.settings.reproductionSettings.defaultEnergyVolume),
+				),
+			),
+			g.TabItem("Terrain").Layout(
+				g.TreeNode("Generate").Flags(g.TreeNodeFlagsCollapsingHeader|g.TreeNodeFlagsDefaultOpen).Layout(
+					g.Row(
+						g.RadioButton("Moore", this.settings.terrainSettings.terrainType == 0).OnChange(func() { this.settings.terrainSettings.terrainType = 0 }),
+						g.RadioButton("Neumann", this.settings.terrainSettings.terrainType == 1).OnChange(func() { this.settings.terrainSettings.terrainType = 1 }),
+						g.RadioButton("Hex", this.settings.terrainSettings.terrainType == 2).OnChange(func() { this.settings.terrainSettings.terrainType = 2 }),
+					),
+					g.Row(
+						g.Label("OrganicProbability"),
+						g.InputInt(&this.settings.terrainSettings.organicProbability),
+					),
+					g.Button("Generate").OnClick(func() {
+						go this.generateTerrain(true)
+					}),
+				),
+				g.TreeNode("FromFile").Flags(g.TreeNodeFlagsCollapsingHeader|g.TreeNodeFlagsDefaultOpen).Layout(
+					g.Row(
+						g.InputText(&this.terrainFilePath),
+						g.Button("Select...").OnClick(func() {
+							this.loadTerrainFromFile(this.terrainFilePath)
+						}),
+					),
+				),
+			),
+			g.TabItem("Reproduction").Layout(
+				g.TreeNode("Budding").Flags(g.TreeNodeFlagsCollapsingHeader|g.TreeNodeFlagsDefaultOpen).Layout(
+					g.Row(
+						g.Label("Reproduction power"),
+						g.InputInt(&this.settings.reproductionSettings.buddingReproductionSettings.reproductionPower),
+					),
+					g.Row(
+						g.Label("Mutation probability"),
+						g.InputInt(&this.settings.reproductionSettings.buddingReproductionSettings.mutationProbability),
+					),
+				),
+				g.TreeNode("Mitosis").Flags(g.TreeNodeFlagsCollapsingHeader|g.TreeNodeFlagsDefaultOpen).Layout(
+					g.Row(
+						g.Label("Reproduction power"),
+						g.InputInt(&this.settings.reproductionSettings.mitosisReproductionSettings.reproductionPower),
+					),
+					g.Row(
+						g.Label("Mutation probability"),
+						g.InputInt(&this.settings.reproductionSettings.mitosisReproductionSettings.mutationProbability),
+					),
+					g.Row(
+						g.Label("Generation capacity"),
+						g.InputInt(&this.settings.reproductionSettings.mitosisReproductionSettings.generationCapacity),
+					),
+				),
+			),
+			g.TabItem("Agent").Layout(
+				g.TreeNode("Reproduction").Flags(g.TreeNodeFlagsCollapsingHeader|g.TreeNodeFlagsDefaultOpen).Layout(
+					g.Row(
+						g.RadioButton("Budding", this.settings.reproductionSettings.reproductionType == 0).OnChange(func() { this.settings.reproductionSettings.reproductionType = 0 }),
+						g.RadioButton("Mitosis", this.settings.reproductionSettings.reproductionType == 1).OnChange(func() { this.settings.reproductionSettings.reproductionType = 1 }),
+					),
+				),
+			),
 		),
 	}
 }
@@ -118,20 +269,6 @@ func (this *Workspace) loop() {
 				g.MenuItem("Save"),
 				g.MenuItem("Close").OnClick(this.exit),
 			),
-			g.Menu("World").Layout(
-				// You could add any kind of widget here, not just menu item.
-				g.Menu("Terrain").Layout(
-					g.MenuItem("Load from file..."),
-					g.MenuItem("Generate"),
-				),
-				g.Menu("Commands").Layout(
-					g.MenuItem("Show").OnClick(func() {
-						showCommands = true
-					}),
-					g.MenuItem("Edit"),
-					g.MenuItem("Add"),
-				),
-			),
 		),
 		g.SplitLayout(g.DirectionHorizontal, true, 1730,
 			g.SplitLayout(g.DirectionVertical, true, 900,
@@ -143,34 +280,4 @@ func (this *Workspace) loop() {
 			},
 		),
 	)
-
-	commandsF := func() []*g.TableRowWidget {
-		cmnds := GetCommands()
-		rows := make([]*g.TableRowWidget, len(cmnds)+1)
-
-		rows[0] = g.TableRow(
-			g.Label("Identifier"),
-			g.Label("Title"),
-		).Flags(g.TableRowFlagsHeaders)
-
-		for i, e := range cmnds {
-			rows[i+1] = g.TableRow(
-				g.Label(fmt.Sprintf("%d", i)),
-				g.Label(fmt.Sprintf("%T", e)),
-			)
-		}
-
-		rows[0].BgColor(&(color.RGBA{200, 100, 100, 255}))
-
-		return rows
-	}
-
-	if showCommands {
-		g.SingleWindow().IsOpen(&showCommands).Flags(g.WindowFlagsNoResize).Pos(250, 30).Size(300, 300).Layout(
-			g.Table().Freeze(0, 1).FastMode(true).Rows(commandsF()...),
-			g.Button("Hide me").OnClick(func() {
-				showCommands = false
-			}),
-		)
-	}
 }
