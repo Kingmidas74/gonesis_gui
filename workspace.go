@@ -8,6 +8,7 @@ import (
 	"github.com/Kingmidas74/gonesis_engine/core/primitives"
 	"github.com/Kingmidas74/gonesis_engine/core/terrains"
 	"github.com/Kingmidas74/gonesis_engine/core/world"
+	"github.com/Kingmidas74/gonesis_engine/utils"
 	"image"
 	"image/color"
 	"os"
@@ -77,7 +78,25 @@ func (this *Workspace) Start() {
 
 func (this *Workspace) generateTerrain(withDraw bool) {
 	cells := make([]contracts.ICell, 0)
-	this.currentTerrain = GetTerrain(this.settings.terrainSettings, cells, 0, 0)
+	for y := 0; y < int(this.settings.terrainSettings.height); y++ {
+		for x := 0; x < int(this.settings.terrainSettings.width); x++ {
+			currentCell := &terrains.Cell{
+				Coords: primitives.Coords{
+					X: x,
+					Y: y,
+				},
+				CellType: contracts.EmptyCell,
+				Cost:     0,
+				Agent:    nil,
+			}
+			if utils.RandomIntBetween(0, 100) > int(this.settings.terrainSettings.organicProbability) {
+				currentCell.SetCellType(contracts.OrganicCell)
+				currentCell.SetCost(utils.RandomIntBetween(-20, 20))
+			}
+			cells = append(cells, currentCell)
+		}
+	}
+	this.currentTerrain = GetTerrain(this.settings.terrainSettings, cells, int(this.settings.terrainSettings.width), int(this.settings.terrainSettings.height))
 	this.placeAgents(GetAgents(int(this.settings.worldSettings.agentsCount), this.settings.reproductionSettings))
 	if withDraw {
 		this.texture, _ = g.NewTextureFromRgba(DrawFrame(this.currentTerrain, 100))
@@ -136,6 +155,10 @@ func (this *Workspace) loadTerrainFromFile(filePath string) {
 	}
 
 	this.currentTerrain = GetTerrain(this.settings.terrainSettings, cells, len(cells)/currentRowIndex, currentRowIndex)
+
+	this.settings.terrainSettings.width = int32(this.currentTerrain.GetWidth())
+	this.settings.terrainSettings.height = int32(this.currentTerrain.GetHeight())
+
 	this.placeAgents(GetAgents(int(this.settings.worldSettings.agentsCount), this.settings.reproductionSettings))
 	go func() {
 		this.texture, _ = g.NewTextureFromRgba(DrawFrame(this.currentTerrain, 100))
@@ -187,6 +210,13 @@ func (this *Workspace) drawControls() *g.Layout {
 						g.RadioButton("Moore", this.settings.terrainSettings.terrainType == 0).OnChange(func() { this.settings.terrainSettings.terrainType = 0 }),
 						g.RadioButton("Neumann", this.settings.terrainSettings.terrainType == 1).OnChange(func() { this.settings.terrainSettings.terrainType = 1 }),
 						g.RadioButton("Hex", this.settings.terrainSettings.terrainType == 2).OnChange(func() { this.settings.terrainSettings.terrainType = 2 }),
+					),
+					g.Row(
+						g.Label("Width"),
+						g.InputInt(&this.settings.terrainSettings.width),
+
+						g.Label("Height"),
+						g.InputInt(&this.settings.terrainSettings.height),
 					),
 					g.Row(
 						g.Label("OrganicProbability"),

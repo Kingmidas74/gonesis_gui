@@ -24,6 +24,8 @@ type WorldSettings struct {
 
 type TerrainSettings struct {
 	terrainType        int
+	width              int32
+	height             int32
 	organicProbability int32
 }
 
