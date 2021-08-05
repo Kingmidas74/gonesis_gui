@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"bufio"
@@ -11,12 +11,17 @@ import (
 	"github.com/Kingmidas74/gonesis_engine/core/primitives"
 	"github.com/Kingmidas74/gonesis_engine/core/reproductions"
 	"github.com/Kingmidas74/gonesis_engine/core/terrains"
+	"github.com/Kingmidas74/gonesis_engine/utils"
+	"gonesis_gui/models"
 	"os"
 	"strconv"
 	"strings"
 )
 
-func GetCommands() map[int]contracts.ICommand {
+type GeneratorService struct {
+}
+
+func (this *GeneratorService) GetCommands() map[int]contracts.ICommand {
 	commandsMap := make(map[int]contracts.ICommand)
 	commandsMap[0] = &preparedCommands.MoveCommand{
 		commands.Command{
@@ -31,7 +36,7 @@ func GetCommands() map[int]contracts.ICommand {
 	return commandsMap
 }
 
-func Readln(r *bufio.Reader) (string, error) {
+func (this *GeneratorService) Readln(r *bufio.Reader) (string, error) {
 	var (
 		isPrefix bool  = true
 		err      error = nil
@@ -44,7 +49,7 @@ func Readln(r *bufio.Reader) (string, error) {
 	return string(ln), err
 }
 
-func GetTerrainFromFile(filePath string, settings TerrainSettings) contracts.ITerrain {
+func (this *GeneratorService) GetTerrainFromFile(filePath string, settings models.TerrainSettings) contracts.ITerrain {
 	cells := make([]contracts.ICell, 0)
 
 	f, err := os.Open(filePath)
@@ -53,7 +58,7 @@ func GetTerrainFromFile(filePath string, settings TerrainSettings) contracts.ITe
 		os.Exit(1)
 	}
 	r := bufio.NewReader(f)
-	s, e := Readln(r)
+	s, e := this.Readln(r)
 	currentRowIndex := 0
 	for e == nil {
 		for i, data := range strings.Split(s, ",") {
@@ -77,14 +82,14 @@ func GetTerrainFromFile(filePath string, settings TerrainSettings) contracts.ITe
 			}
 			cells = append(cells, &currentCell)
 		}
-		s, e = Readln(r)
+		s, e = this.Readln(r)
 		currentRowIndex++
 	}
 
-	return GetTerrain(settings, cells, len(cells)/currentRowIndex, currentRowIndex)
+	return this.GetTerrain(settings, cells, len(cells)/currentRowIndex, currentRowIndex)
 }
 
-func GetTerrain(settings TerrainSettings, cells []contracts.ICell, width, height int) contracts.ITerrain {
+func (this *GeneratorService) GetTerrain(settings models.TerrainSettings, cells []contracts.ICell, width, height int) contracts.ITerrain {
 
 	var terrain contracts.ITerrain
 
@@ -94,7 +99,7 @@ func GetTerrain(settings TerrainSettings, cells []contracts.ICell, width, height
 		Height: height,
 	}
 
-	switch settings.terrainType {
+	switch settings.TerrainType {
 	case 0:
 		terrain = &terrains.MooreTerrain{
 			baseTerrain,
@@ -115,14 +120,14 @@ func GetTerrain(settings TerrainSettings, cells []contracts.ICell, width, height
 	return terrain
 }
 
-func GetAgents(agentsCount int, settings ReproductionSettings) []contracts.IAgent {
+func (this *GeneratorService) GetAgents(agentsCount int, settings models.ReproductionSettings) []contracts.IAgent {
 	result := make([]contracts.IAgent, 0)
 
 	for i := 0; i < agentsCount; i++ {
 		agent := &agents.Agent{
 			IBrain: &core.Brain{
 				CommandList: commands.CommandList{
-					Commands: GetCommands(),
+					Commands: this.GetCommands(),
 				},
 				Commands: []int{
 					0, 4, //down
@@ -140,25 +145,64 @@ func GetAgents(agentsCount int, settings ReproductionSettings) []contracts.IAgen
 				},
 				CurrentAddress: 0,
 			},
-			Energy:     int(settings.defaultEnergyVolume),
+			Energy:     int(settings.DefaultEnergyVolume),
 			Generation: 0,
 		}
-		switch settings.reproductionType {
+		switch settings.ReproductionType {
 		case 0:
 			agent.IReproduction = &reproductions.BuddingReproduction{
-				ReproductionPower:   int(settings.buddingReproductionSettings.reproductionPower),
-				MutationProbability: int(settings.buddingReproductionSettings.mutationProbability),
+				ReproductionPower:   int(settings.BuddingReproductionSettings.ReproductionPower),
+				MutationProbability: int(settings.BuddingReproductionSettings.MutationProbability),
 			}
 			break
 		case 1:
 			agent.IReproduction = &reproductions.MitosisReproduction{
-				ReproductionPower:   int(settings.mitosisReproductionSettings.reproductionPower),
-				MutationProbability: int(settings.mitosisReproductionSettings.mutationProbability),
-				GenerationPower:     int(settings.mitosisReproductionSettings.generationCapacity),
+				ReproductionPower:   int(settings.MitosisReproductionSettings.ReproductionPower),
+				MutationProbability: int(settings.MitosisReproductionSettings.MutationProbability),
+				GenerationPower:     int(settings.MitosisReproductionSettings.GenerationCapacity),
 			}
 			break
 		}
 		result = append(result, agent)
 	}
 	return result
+}
+
+func (this *GeneratorService) PlaceAgents(currentAgents []contracts.IAgent, terrain contracts.ITerrain) contracts.ITerrain {
+	placedChildrenCount := 0
+
+	for i := 0; i < len(terrain.GetCells()) && placedChildrenCount < len(currentAgents); i++ {
+		if terrain.GetCells()[i].GetCellType() == contracts.EmptyCell {
+			currentAgents[placedChildrenCount].SetX(terrain.GetCells()[i].GetX())
+			currentAgents[placedChildrenCount].SetY(terrain.GetCells()[i].GetY())
+			terrain.GetCells()[i].SetCellType(contracts.LockedCell)
+			terrain.GetCells()[i].SetAgent(currentAgents[placedChildrenCount])
+			placedChildrenCount++
+		}
+	}
+
+	return terrain
+}
+
+func (this *GeneratorService) GetCells(settings models.TerrainSettings) []contracts.ICell {
+	cells := make([]contracts.ICell, 0)
+	for y := 0; y < int(settings.Height); y++ {
+		for x := 0; x < int(settings.Width); x++ {
+			currentCell := &terrains.Cell{
+				Coords: primitives.Coords{
+					X: x,
+					Y: y,
+				},
+				CellType: contracts.EmptyCell,
+				Cost:     0,
+				Agent:    nil,
+			}
+			if utils.RandomIntBetween(0, 100) <= int(settings.OrganicProbability) {
+				currentCell.SetCellType(contracts.OrganicCell)
+				currentCell.SetCost(utils.RandomIntBetween(-20, 20))
+			}
+			cells = append(cells, currentCell)
+		}
+	}
+	return cells
 }
