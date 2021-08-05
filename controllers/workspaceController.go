@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"encoding/json"
 	g "github.com/AllenDang/giu"
 	"github.com/Kingmidas74/gonesis_engine/contracts"
 	"github.com/Kingmidas74/gonesis_engine/core/world"
 	"gonesis_gui/models"
 	"gonesis_gui/services"
+	"io/ioutil"
 	"os"
 	"time"
 )
@@ -56,6 +58,18 @@ func (this *WorkspaceController) OnLoadTerrainHandler() {
 
 	this.CurrentModel.CurrentTerrain = this.GeneratorService.PlaceAgents(this.GeneratorService.GetAgents(int(this.CurrentModel.Settings.WorldSettings.AgentsCount), this.CurrentModel.Settings.ReproductionSettings), this.CurrentModel.CurrentTerrain)
 	go this.updateTexture(this.CurrentModel.CurrentTerrain)
+}
+
+func (this *WorkspaceController) OnSaveWorldHandler(filepath string) {
+	file, _ := json.MarshalIndent(this.CurrentModel.Settings, "", " ")
+
+	_ = ioutil.WriteFile(filepath, file, 0644)
+}
+
+func (this *WorkspaceController) OnLoadWorldHandler(filepath string) {
+	content, _ := ioutil.ReadFile(filepath)
+
+	_ = json.Unmarshal([]byte(content), &this.CurrentModel.Settings)
 }
 
 func (this *WorkspaceController) generateTerrain(withDraw bool) {

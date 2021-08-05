@@ -8,6 +8,10 @@ import (
 	"image/color"
 )
 
+const (
+	tempSaveFile = "/tmp/gonesis.json"
+)
+
 type WorkspacePresenter struct {
 	Width  int
 	Height int
@@ -137,8 +141,12 @@ func (this *WorkspacePresenter) loop() {
 	g.SingleWindowWithMenuBar().Layout(
 		g.MenuBar().Layout(
 			g.Menu(this.Title).Layout(
-				g.MenuItem("Load"),
-				g.MenuItem("Save"),
+				g.MenuItem("Load").OnClick(func() {
+					this.CurrentController.OnLoadWorldHandler(tempSaveFile)
+				}),
+				g.MenuItem("Save").OnClick(func() {
+					this.CurrentController.OnSaveWorldHandler(tempSaveFile)
+				}),
 				g.MenuItem("Close").OnClick(this.CurrentController.OnExitHandler),
 			),
 		),
