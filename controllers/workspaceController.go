@@ -68,5 +68,5 @@ func (this *WorkspaceController) generateTerrain(withDraw bool) {
 }
 
 func (this *WorkspaceController) updateTexture(terrain contracts.ITerrain) {
-	this.CurrentModel.Texture, _ = g.NewTextureFromRgba(services.DrawFrame(terrain, 100))
+	this.CurrentModel.Texture, _ = g.NewTextureFromRgba(services.DrawFrame(terrain, this.CurrentModel.ScaleTextureValue))
 }

@@ -125,7 +125,7 @@ func (this *WorkspacePresenter) drawCanvas() *g.Layout {
 		g.Custom(func() {
 			canvas := g.GetCanvas()
 			if this.CurrentModel.Texture != nil {
-				canvas.AddImage(this.CurrentModel.Texture, image.Pt(0, 0), image.Pt(1920, 1080))
+				canvas.AddImage(this.CurrentModel.Texture, image.Pt(0, 0), image.Pt(int(this.CurrentModel.Settings.TerrainSettings.Width)*this.CurrentModel.ScaleTextureValue, int(this.CurrentModel.Settings.TerrainSettings.Height)*this.CurrentModel.ScaleTextureValue))
 			}
 		}),
 	)

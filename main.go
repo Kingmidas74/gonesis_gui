@@ -30,9 +30,10 @@ func main() {
 				},
 			},
 		},
-		CurrentTerrain:  nil,
-		TerrainFilePath: "",
-		Texture:         nil,
+		ScaleTextureValue: 1,
+		CurrentTerrain:    nil,
+		TerrainFilePath:   "",
+		Texture:           nil,
 	}
 
 	currentWorkspace := presenters.WorkspacePresenter{

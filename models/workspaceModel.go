@@ -9,6 +9,7 @@ type WorkspaceModel struct {
 	Settings EvolutionSettings
 	Texture  *g.Texture
 
-	CurrentTerrain  contracts.ITerrain
-	TerrainFilePath string
+	CurrentTerrain    contracts.ITerrain
+	TerrainFilePath   string
+	ScaleTextureValue int
 }
