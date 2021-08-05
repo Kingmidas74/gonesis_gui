@@ -1,13 +1,19 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	preparedCommands "github.com/Kingmidas74/gonesis_engine/commands"
 	"github.com/Kingmidas74/gonesis_engine/contracts"
 	"github.com/Kingmidas74/gonesis_engine/core"
 	"github.com/Kingmidas74/gonesis_engine/core/agents"
 	"github.com/Kingmidas74/gonesis_engine/core/commands"
+	"github.com/Kingmidas74/gonesis_engine/core/primitives"
 	"github.com/Kingmidas74/gonesis_engine/core/reproductions"
 	"github.com/Kingmidas74/gonesis_engine/core/terrains"
+	"os"
+	"strconv"
+	"strings"
 )
 
 func GetCommands() map[int]contracts.ICommand {
@@ -23,6 +29,46 @@ func GetCommands() map[int]contracts.ICommand {
 		},
 	}
 	return commandsMap
+}
+
+func GetTerrainFromFile(filePath string, settings TerrainSettings) contracts.ITerrain {
+	cells := make([]contracts.ICell, 0)
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("error opening file: %v\n", err)
+		os.Exit(1)
+	}
+	r := bufio.NewReader(f)
+	s, e := Readln(r)
+	currentRowIndex := 0
+	for e == nil {
+		for i, data := range strings.Split(s, ",") {
+			currentCell := terrains.Cell{
+				Coords: primitives.Coords{
+					X: i,
+					Y: currentRowIndex,
+				},
+				CellType: contracts.EmptyCell,
+				Cost:     0,
+				Agent:    nil,
+			}
+			if data == "*" {
+				currentCell.SetCellType(contracts.ObstacleCell)
+			} else {
+				weight, _ := strconv.Atoi(data)
+				if weight != 0 {
+					currentCell.SetCellType(contracts.OrganicCell)
+					currentCell.SetCost(weight)
+				}
+			}
+			cells = append(cells, &currentCell)
+		}
+		s, e = Readln(r)
+		currentRowIndex++
+	}
+
+	return GetTerrain(settings, cells, len(cells)/currentRowIndex, currentRowIndex)
 }
 
 func GetTerrain(settings TerrainSettings, cells []contracts.ICell, width, height int) contracts.ITerrain {

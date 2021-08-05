@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	g "github.com/AllenDang/giu"
 	"github.com/Kingmidas74/gonesis_engine/contracts"
 	"github.com/Kingmidas74/gonesis_engine/core/primitives"
@@ -12,8 +11,6 @@ import (
 	"image"
 	"image/color"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -118,43 +115,7 @@ func Readln(r *bufio.Reader) (string, error) {
 
 func (this *Workspace) loadTerrainFromFile(filePath string) {
 
-	cells := make([]contracts.ICell, 0)
-
-	f, err := os.Open(filePath)
-	if err != nil {
-		fmt.Printf("error opening file: %v\n", err)
-		os.Exit(1)
-	}
-	r := bufio.NewReader(f)
-	s, e := Readln(r)
-	currentRowIndex := 0
-	for e == nil {
-		for i, data := range strings.Split(s, ",") {
-			currentCell := terrains.Cell{
-				Coords: primitives.Coords{
-					X: i,
-					Y: currentRowIndex,
-				},
-				CellType: contracts.EmptyCell,
-				Cost:     0,
-				Agent:    nil,
-			}
-			if data == "*" {
-				currentCell.SetCellType(contracts.ObstacleCell)
-			} else {
-				weight, _ := strconv.Atoi(data)
-				if weight != 0 {
-					currentCell.SetCellType(contracts.OrganicCell)
-					currentCell.SetCost(weight)
-				}
-			}
-			cells = append(cells, &currentCell)
-		}
-		s, e = Readln(r)
-		currentRowIndex++
-	}
-
-	this.currentTerrain = GetTerrain(this.settings.terrainSettings, cells, len(cells)/currentRowIndex, currentRowIndex)
+	this.currentTerrain = GetTerrainFromFile(filePath, this.settings.terrainSettings)
 
 	this.settings.terrainSettings.width = int32(this.currentTerrain.GetWidth())
 	this.settings.terrainSettings.height = int32(this.currentTerrain.GetHeight())
